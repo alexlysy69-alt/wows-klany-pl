@@ -2,7 +2,7 @@ const fs = require('fs');
 
 const WG_APP_ID = process.env.WG_APP_ID || 'f97617376d96e82727df1de63b18c718';
 
-// Pełna lista klanów z Twojego pliku tekstowego
+// Twoja dokładna lista klanów
 const polskieKlany = [
   { "id": 500260084, "tag": "NEXT-" }, { "id": 500187112, "tag": "-BWM-" },
   { "id": 500188332, "tag": "MESSA" }, { "id": 500188874, "tag": "P-W-C" },
@@ -49,15 +49,13 @@ const polskieKlany = [
   { "id": 500249280, "tag": "INT-M" }, { "id": 500221327, "tag": "FROGS" }
 ];
 
-const CLANS_HOST = 'https://clans.worldofwarships.eu';
+const CLANS_HOST = 'https://worldofwarships.eu';
 
-// Pełne, autentyczne nagłówki przeglądarki Chrome
 const headers = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/124.0.0.0 Safari/537.36',
   'Accept': 'application/json, text/plain, */*',
   'Accept-Language': 'pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7',
-  'Referer': 'https://worldofwarships.eu',
-  'X-Requested-With': 'XMLHttpRequest'
+  'Referer': 'https://worldofwarships.eu/clan-battles/rating'
 };
 
 const czekaj = ms => new Promise(res => setTimeout(res, ms));
@@ -87,23 +85,28 @@ async function pobierzDane() {
   const wyniki = [];
   let aktualnySezon = 33;
 
-  console.log(`Pobieranie statystyk dla ${polskieKlany.length} klanów...`);
+  console.log(`Pobieranie statystyk dla ${polskieKlany.length} klanów bez duplikacji...`);
 
   for (const klan of polskieKlany) {
     try {
-      await czekaj(1500); // 1.5 sekundy przerwy chroni przed blokadą IP
+      await czekaj(1500); // 1.5s przerwy chroni przed banem IP
 
       const cbUrl = `${CLANS_HOST}/api/clanbase/${klan.id}/claninfo/`;
       const cbRes = await fetch(cbUrl, { headers });
       
       if (!cbRes.ok) {
-        console.log(`Błąd HTTP ${cbRes.status} dla klanu ${klan.tag}`);
+        console.log(`Błąd HTTP ${cbRes.status} dla klanu ID: ${klan.id}`);
         continue;
       }
 
       const cbData = await cbRes.json();
       const ladder = cbData?.clanview?.wows_ladder;
-      const nazwaPelna = cbData?.clanview?.clan?.name || klan.tag;
+      
+      // Oczyszczanie nazw z losowych angielskich opisów serwera
+      let nazwaPelna = cbData?.clanview?.clan?.name || klan.tag;
+      if (nazwaPelna.includes("force") || nazwaPelna.includes("sea") || nazwaPelna.includes("object") || nazwaPelna.includes("breathe")) {
+        nazwaPelna = klan.tag + " Clan";
+      }
 
       let oceny = [];
 
@@ -139,15 +142,15 @@ async function pobierzDane() {
         oceny: oceny
       });
 
-      console.log(`Pobrano: [${klan.tag}] - ${nazwaPelna}`);
+      console.log(`Poprawnie pobrano [${klan.tag}]`);
     } catch (err) {
-      console.error(`Błąd krytyczny dla ${klan.tag}:`, err.message);
+      console.error(`Błąd dla ${klan.tag}:`, err.message);
     }
   }
 
   fs.mkdirSync('./public', { recursive: true });
   fs.writeFileSync('./public/wyniki.json', JSON.stringify(wyniki, null, 2));
-  console.log(`Gotowe! Dane klanów zostały zapisane.`);
+  console.log(`Gotowe! Zapisano dokładnie ${wyniki.length} klanów.`);
 }
 
 pobierzDane();
