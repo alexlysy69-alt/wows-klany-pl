@@ -77,7 +77,7 @@ async function pobierzDane() {
   let aktualnySezon = 33;
 
   // Dzielimy klany na mniejsze paczki po 10 sztuk
-  constrozmiarPaczki = 10;
+  const rozmiarPaczki = 10;
   
   for (let i = 0; i < polskieKlany.length; i += rozmiarPaczki) {
     const paczka = polskieKlany.slice(i, i + rozmiarPaczki);
