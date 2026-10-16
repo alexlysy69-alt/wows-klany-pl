@@ -2,7 +2,7 @@ const fs = require('fs');
 
 const WG_APP_ID = process.env.WG_APP_ID || 'f97617376d96e82727df1de63b18c718';
 
-// Pełna baza polskich klanów
+// Pełna lista klanów z Twojego pliku tekstowego
 const polskieKlany = [
   { "id": 500260084, "tag": "NEXT-" }, { "id": 500187112, "tag": "-BWM-" },
   { "id": 500188332, "tag": "MESSA" }, { "id": 500188874, "tag": "P-W-C" },
@@ -49,14 +49,17 @@ const polskieKlany = [
   { "id": 500249280, "tag": "INT-M" }, { "id": 500221327, "tag": "FROGS" }
 ];
 
-const CLANS_HOST = 'https://worldofwarships.eu';
+const CLANS_HOST = 'https://clans.worldofwarships.eu';
 
+// Pełne, autentyczne nagłówki przeglądarki Chrome
 const headers = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/124.0.0.0 Safari/537.36',
-  'Accept': 'application/json'
+  'Accept': 'application/json, text/plain, */*',
+  'Accept-Language': 'pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7',
+  'Referer': 'https://worldofwarships.eu',
+  'X-Requested-With': 'XMLHttpRequest'
 };
 
-// Funkcja tworząca sztuczną przerwę (w milisekundach)
 const czekaj = ms => new Promise(res => setTimeout(res, ms));
 
 function formatujOcene(r) {
@@ -66,8 +69,8 @@ function formatujOcene(r) {
   return {
     team_number: r.team_number || 1,
     rating_name: r.team_number === 2 ? 'Bravo' : 'Alpha',
-    liga: r.league ?? 4,
-    dywizja: r.division ?? 3,
+    liga: r.league !== undefined ? r.league : 4,
+    dywizja: r.division !== undefined ? r.division : 3,
     punkty: r.division_rating ?? 0,
     rating_calkowity: r.public_rating ?? 0,
     max_liga: r.max_position?.league ?? r.league ?? 4,
@@ -84,18 +87,17 @@ async function pobierzDane() {
   const wyniki = [];
   let aktualnySezon = 33;
 
-  console.log(`Rozpoczynam pobieranie danych dla ${polskieKlany.length} klanów...`);
+  console.log(`Pobieranie statystyk dla ${polskieKlany.length} klanów...`);
 
   for (const klan of polskieKlany) {
     try {
-      // Czekamy 1,5 sekundy przed każdym zapytaniem, żeby ominąć blokadę anty-spamową
-      await czekaj(1500);
+      await czekaj(1500); // 1.5 sekundy przerwy chroni przed blokadą IP
 
       const cbUrl = `${CLANS_HOST}/api/clanbase/${klan.id}/claninfo/`;
       const cbRes = await fetch(cbUrl, { headers });
       
       if (!cbRes.ok) {
-        console.log(`Błąd serwera (HTTP ${cbRes.status}) dla klanu: ${klan.tag}`);
+        console.log(`Błąd HTTP ${cbRes.status} dla klanu ${klan.tag}`);
         continue;
       }
 
@@ -122,8 +124,7 @@ async function pobierzDane() {
 
       if (oceny.length === 0) {
         oceny.push({
-          team_number: 1,
-          rating_name: 'Alpha',
+          team_number: 1, rating_name: 'Alpha',
           liga: 4, dywizja: 3, punkty: 0, rating_calkowity: 0,
           max_liga: 4, max_dywizja: 3, max_punkty: 0, max_rating_calkowity: 0,
           bitwy: 0, wygrane: 0, wr: 0
@@ -138,15 +139,15 @@ async function pobierzDane() {
         oceny: oceny
       });
 
-      console.log(`Pomyślnie pobrano: [${klan.tag}]`);
+      console.log(`Pobrano: [${klan.tag}] - ${nazwaPelna}`);
     } catch (err) {
-      console.error(`Błąd dla klanu ${klan.tag}:`, err.message);
+      console.error(`Błąd krytyczny dla ${klan.tag}:`, err.message);
     }
   }
 
   fs.mkdirSync('./public', { recursive: true });
   fs.writeFileSync('./public/wyniki.json', JSON.stringify(wyniki, null, 2));
-  console.log(`Zakończono! Zapisano ${wyniki.length} klanów do pliku wyniki.json.`);
+  console.log(`Gotowe! Dane klanów zostały zapisane.`);
 }
 
 pobierzDane();
