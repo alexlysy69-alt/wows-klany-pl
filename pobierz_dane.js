@@ -1,8 +1,8 @@
 const fs = require('fs');
 
+// Korzystamy z Twojego oficjalnego klucza API Wargamingu
 const WG_APP_ID = process.env.WG_APP_ID || 'f97617376d96e82727df1de63b18c718';
 
-// Twoja dokładna lista klanów
 const polskieKlany = [
   { "id": 500260084, "tag": "NEXT-" }, { "id": 500187112, "tag": "-BWM-" },
   { "id": 500188332, "tag": "MESSA" }, { "id": 500188874, "tag": "P-W-C" },
@@ -49,82 +49,57 @@ const polskieKlany = [
   { "id": 500249280, "tag": "INT-M" }, { "id": 500221327, "tag": "FROGS" }
 ];
 
-const CLANS_HOST = 'https://worldofwarships.eu';
-
-const headers = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/124.0.0.0 Safari/537.36',
-  'Accept': 'application/json, text/plain, */*',
-  'Accept-Language': 'pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7',
-  'Referer': 'https://worldofwarships.eu/clan-battles/rating'
-};
-
-const czekaj = ms => new Promise(res => setTimeout(res, ms));
-
-function formatujOcene(r) {
-  if (!r) return null;
-  const bitwy = r.battles_count ?? 0;
-  const wygrane = r.wins_count ?? 0;
-  return {
-    team_number: r.team_number || 1,
-    rating_name: r.team_number === 2 ? 'Bravo' : 'Alpha',
-    liga: r.league !== undefined ? r.league : 4,
-    dywizja: r.division !== undefined ? r.division : 3,
-    punkty: r.division_rating ?? 0,
-    rating_calkowity: r.public_rating ?? 0,
-    max_liga: r.max_position?.league ?? r.league ?? 4,
-    max_dywizja: r.max_position?.division ?? r.division ?? 3,
-    max_punkty: r.max_position?.division_rating ?? r.division_rating ?? 0,
-    max_rating_calkowity: r.max_public_rating ?? r.public_rating ?? 0,
-    bitwy: bitwy,
-    wygrane: wygrane,
-    wr: bitwy > 0 ? Number(((wygrane / bitwy) * 100).toFixed(2)) : 0
-  };
-}
-
 async function pobierzDane() {
   const wyniki = [];
-  let aktualnySezon = 33;
+  const idsString = polskieKlany.map(c => c.id).join(',');
+  
+  // Pobieramy dane o wszystkich klanach na raz z oficjalnego API Wargamingu (obsługuje do 100 ID w jednym zapytaniu!)
+  const url = `https://worldofwarships.eu{WG_APP_ID}&clan_id=${idsString}&extra=clan_battles`;
 
-  console.log(`Pobieranie statystyk dla ${polskieKlany.length} klanów bez duplikacji...`);
+  try {
+    const res = await fetch(url);
+    const apiData = await res.json();
 
-  for (const klan of polskieKlany) {
-    try {
-      await czekaj(1500); // 1.5s przerwy chroni przed banem IP
+    if (apiData.status !== 'ok' || !apiData.data) {
+      console.error("Błąd API Wargamingu:", apiData.error);
+      return;
+    }
 
-      const cbUrl = `${CLANS_HOST}/api/clanbase/${klan.id}/claninfo/`;
-      const cbRes = await fetch(cbUrl, { headers });
-      
-      if (!cbRes.ok) {
-        console.log(`Błąd HTTP ${cbRes.status} dla klanu ID: ${klan.id}`);
-        continue;
-      }
+    let aktualnySezon = 33;
 
-      const cbData = await cbRes.json();
-      const ladder = cbData?.clanview?.wows_ladder;
-      
-      // Oczyszczanie nazw z losowych angielskich opisów serwera
-      let nazwaPelna = cbData?.clanview?.clan?.name || klan.tag;
-      if (nazwaPelna.includes("force") || nazwaPelna.includes("sea") || nazwaPelna.includes("object") || nazwaPelna.includes("breathe")) {
-        nazwaPelna = klan.tag + " Clan";
-      }
+    polskieKlany.forEach(klan => {
+      const info = apiData.data[klan.id];
+      if (!info) return;
 
       let oceny = [];
+      const cb = info.clan_battles;
 
-      if (ladder) {
-        if (ladder.season_number) aktualnySezon = ladder.season_number;
-
-        let suroweOceny = [];
-        if (Array.isArray(ladder.ratings) && ladder.ratings.length > 0) {
-          suroweOceny = ladder.ratings;
-        } else if (Array.isArray(ladder.last_season_ratings) && ladder.last_season_ratings.length > 0) {
-          suroweOceny = ladder.last_season_ratings;
-        } else if (ladder.battles_count > 0 || ladder.public_rating > 0) {
-          suroweOceny = [ladder];
-        }
-
-        oceny = suroweOceny.map(formatujOcene).filter(Boolean);
+      if (cb && Array.isArray(cb.ratings)) {
+        aktualnySezon = cb.season_id || aktualnySezon;
+        
+        cb.ratings.forEach(r => {
+          const bitwy = r.battles_count ?? 0;
+          const wygrane = r.wins_count ?? 0;
+          
+          oceny.push({
+            team_number: r.team_number || 1,
+            rating_name: r.team_number === 2 ? 'Bravo' : 'Alpha',
+            liga: r.league ?? 4,
+            dywizja: r.division ?? 3,
+            punkty: r.division_rating ?? 0,
+            rating_calkowity: r.public_rating ?? 0,
+            max_liga: r.max_league ?? r.league ?? 4,
+            max_dywizja: r.max_division ?? r.division ?? 3,
+            max_punkty: r.max_division_rating ?? r.division_rating ?? 0,
+            max_rating_calkowity: r.max_public_rating ?? r.public_rating ?? 0,
+            bitwy: bitwy,
+            wygrane: wygrane,
+            wr: bitwy > 0 ? Number(((wygrane / bitwy) * 100).toFixed(2)) : 0
+          });
+        });
       }
 
+      // Jeśli klan nie grał jeszcze w tym sezonie, tworzymy dla niego pusty wpis startowy
       if (oceny.length === 0) {
         oceny.push({
           team_number: 1, rating_name: 'Alpha',
@@ -136,21 +111,20 @@ async function pobierzDane() {
 
       wyniki.push({
         id: klan.id,
-        tag: klan.tag,
-        nazwa: nazwaPelna,
+        tag: info.tag || klan.tag,
+        nazwa: info.name || info.tag,
         sezon: aktualnySezon,
         oceny: oceny
       });
+    });
 
-      console.log(`Poprawnie pobrano [${klan.tag}]`);
-    } catch (err) {
-      console.error(`Błąd dla ${klan.tag}:`, err.message);
-    }
+    fs.mkdirSync('./public', { recursive: true });
+    fs.writeFileSync('./public/wyniki.json', JSON.stringify(wyniki, null, 2));
+    console.log(`Sukces! Zapisano dane dla dokładnie ${wyniki.length} klanów.`);
+
+  } catch (err) {
+    console.error("Błąd sieciowy podczas pobierania danych:", err.message);
   }
-
-  fs.mkdirSync('./public', { recursive: true });
-  fs.writeFileSync('./public/wyniki.json', JSON.stringify(wyniki, null, 2));
-  console.log(`Gotowe! Zapisano dokładnie ${wyniki.length} klanów.`);
 }
 
 pobierzDane();
