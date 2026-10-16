@@ -1,6 +1,5 @@
 const fs = require('fs');
 
-// Korzystamy z Twojego oficjalnego klucza API Wargamingu
 const WG_APP_ID = process.env.WG_APP_ID || 'f97617376d96e82727df1de63b18c718';
 
 const polskieKlany = [
@@ -49,34 +48,28 @@ const polskieKlany = [
   { "id": 500249280, "tag": "INT-M" }, { "id": 500221327, "tag": "FROGS" }
 ];
 
+const headers = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/124.0.0.0 Safari/537.36',
+  'Accept': 'application/json'
+};
+
 const czekaj = ms => new Promise(res => setTimeout(res, ms));
 
 function wyciagnijOcene(r) {
   if (!r) return null;
-  const bitwy = r.battles_count ?? 0;
-  const wygrane = r.wins_count ?? 0;
+  const b = r.battles_count ?? 0, w = r.wins_count ?? 0;
   return {
     team_number: r.team_number || 1,
     rating_name: r.team_number === 2 ? 'Bravo' : 'Alpha',
-    liga: r.league ?? 4,
-    dywizja: r.division ?? 3,
-    punkty: r.division_rating ?? 0,
-    rating_calkowity: r.public_rating ?? 0,
-    max_liga: r.max_league ?? r.league ?? 4,
-    max_dywizja: r.max_division ?? r.division ?? 3,
-    max_punkty: r.max_division_rating ?? r.division_rating ?? 0,
-    max_rating_calkowity: r.max_public_rating ?? r.public_rating ?? 0,
-    bitwy: bitwy,
-    wygrane: wygrane,
-    wr: bitwy > 0 ? Number(((wygrane / bitwy) * 100).toFixed(2)) : 0
+    liga: r.league ?? 4, dywizja: r.division ?? 3, punkty: r.division_rating ?? 0, rating_calkowity: r.public_rating ?? 0,
+    max_liga: r.max_league ?? r.league ?? 4, max_dywizja: r.max_division ?? r.division ?? 3, max_punkty: r.max_division_rating ?? r.division_rating ?? 0, max_rating_calkowity: r.max_public_rating ?? r.public_rating ?? 0,
+    bitwy: b, wygrane: w, wr: b > 0 ? Number(((w / b) * 100).toFixed(2)) : 0
   };
 }
 
 async function pobierzDane() {
   const wyniki = [];
   let aktualnySezon = 33;
-
-  // Dzielimy klany na mniejsze paczki po 10 sztuk
   const rozmiarPaczki = 10;
   
   for (let i = 0; i < polskieKlany.length; i += rozmiarPaczki) {
@@ -84,74 +77,65 @@ async function pobierzDane() {
     const idsString = paczka.map(c => c.id).join(',');
     const url = `https://worldofwarships.eu{WG_APP_ID}&clan_id=${idsString}&extra=clan_battles`;
 
-    try {
-      console.log(`Pobieranie paczki klanów od pozycji ${i + 1}...`);
-      const res = await fetch(url);
-      const apiData = await res.json();
+    let powtorki = 3;
+    let udane = false;
 
-      if (apiData.status === 'ok' && apiData.data) {
-        paczka.forEach(klan => {
-          const info = apiData.data[klan.id];
-          if (!info) return;
+    while (powtorki > 0 && !udane) {
+      try {
+        console.log(`Pobieranie paczki od pozycji ${i + 1}... (Pozostało prób: ${powtorki})`);
+        const res = await fetch(url, { headers });
+        const apiData = await res.json();
 
-          let oceny = [];
-          const cb = info.clan_battles;
+        if (apiData.status === 'ok' && apiData.data) {
+          udane = true;
+          paczka.forEach(klan => {
+            const info = apiData.data[klan.id];
+            if (!info) return;
 
-          if (cb) {
-            aktualnySezon = cb.season_id || aktualnySezon;
-            if (Array.isArray(cb.ratings) && cb.ratings.length > 0) {
-              cb.ratings.forEach(r => {
-                const f = wyciagnijOcene(r);
-                if (f) oceny.push(f);
-              });
-            } else if (cb.past_seasons && typeof cb.past_seasons === 'object') {
-              const sezonyIds = Object.keys(cb.past_seasons).map(Number).sort((a, b) => b - a);
-              const ostatniSezonId = sezonyIds.at(0);
-              if (ostatniSezonId) {
-                const daneSezonu = cb.past_seasons[ostatniSezonId];
-                if (daneSezonu && Array.isArray(daneSezonu.ratings)) {
-                  daneSezonu.ratings.forEach(r => {
-                    const f = wyciagnijOcene(r);
-                    if (f) oceny.push(f);
-                  });
-                } else if (daneSezonu && (daneSezonu.battles_count > 0 || daneSezonu.public_rating > 0)) {
-                  const f = wyciagnijOcene(daneSezonu);
-                  if (f) oceny.push(f);
+            let oceny = [];
+            const cb = info.clan_battles;
+
+            if (cb) {
+              aktualnySezon = cb.season_id || aktualnySezon;
+              if (Array.isArray(cb.ratings) && cb.ratings.length > 0) {
+                cb.ratings.forEach(r => { var f = wyciagnijOcene(r); if (f) oceny.push(f); });
+              } else if (cb.past_seasons && typeof cb.past_seasons === 'object') {
+                const sIds = Object.keys(cb.past_seasons).map(Number).sort((a, b) => b - a);
+                const ostId = sIds.at(0);
+                if (ostId) {
+                  const dS = cb.past_seasons[ostId];
+                  if (dS && Array.isArray(dS.ratings)) {
+                    dS.ratings.forEach(r => { var f = wyciagnijOcene(r); if (f) oceny.push(f); });
+                  } else if (dS && (dS.battles_count > 0 || dS.public_rating > 0)) {
+                    var f = wyciagnijOcene(dS); if (f) oceny.push(f);
+                  }
                 }
               }
             }
-          }
 
-          if (oceny.length === 0) {
-            oceny.push({
-              team_number: 1, rating_name: 'Alpha',
-              liga: 4, dywizja: 3, punkty: 0, rating_calkowity: 0,
-              max_liga: 4, max_dywizja: 3, max_punkty: 0, max_rating_calkowity: 0,
-              bitwy: 0, wygrane: 0, wr: 0
-            });
-          }
+            if (oceny.length === 0) {
+              oceny.push({ team_number: 1, rating_name: 'Alpha', liga: 4, dywizja: 3, punkty: 0, rating_calkowity: 0, max_liga: 4, max_dywizja: 3, max_punkty: 0, max_rating_calkowity: 0, bitwy: 0, wygrane: 0, wr: 0 });
+            }
 
-          wyniki.push({
-            id: klan.id,
-            tag: info.tag || klan.tag,
-            nazwa: info.name || info.tag,
-            sezon: aktualnySezon,
-            oceny: oceny
+            wyniki.push({ id: klan.id, tag: info.tag || klan.tag, nazwa: info.name || info.tag, Sezon: aktualnySezon, oceny: oceny });
           });
-        });
+        } else {
+          console.log(`API zwróciło błąd, ponawiam...`);
+          powtorki--;
+          await czekaj(2000);
+        }
+      } catch (err) {
+        console.error(`Błąd sieciowy:`, err.message);
+        powtorki--;
+        await czekaj(2000);
       }
-      
-      // Krótka przerwa między paczkami, żeby serwer odpoczął
-      await czekaj(800);
-
-    } catch (err) {
-      console.error(`Błąd paczki klanów:`, err.message);
     }
+    await czekaj(1000);
   }
 
   fs.mkdirSync('./public', { recursive: true });
   fs.writeFileSync('./public/wyniki.json', JSON.stringify(wyniki, null, 2));
-  console.log(`Sukces! Zapisano dane dla ${wyniki.length} klanów.`);
+  console.log(`Zakończono! Zapisano ${wyniki.length} klanów.`);
 }
 
 pobierzDane();
