@@ -1,1 +1,72 @@
-[]
+[
+  {
+    "id": 500159803,
+    "tag": "ORZEL",
+    "nazwa": "JASTRZEMBIE",
+    "liga": 4,
+    "dywizja": 2,
+    "punkty": 0,
+    "rating_calkowity": 1100,
+    "bitwy": 0
+  },
+  {
+    "id": 500166679,
+    "tag": "HUSAR",
+    "nazwa": "HUSARIA_PL",
+    "liga": 4,
+    "dywizja": 2,
+    "punkty": 0,
+    "rating_calkowity": 1100,
+    "bitwy": 0
+  },
+  {
+    "id": 500193255,
+    "tag": "PL-NL",
+    "nazwa": "Ferdydurke",
+    "liga": 4,
+    "dywizja": 2,
+    "punkty": 0,
+    "rating_calkowity": 1100,
+    "bitwy": 0
+  },
+  {
+    "id": 500168047,
+    "tag": "1SBS",
+    "nazwa": "1st Special Boat Service",
+    "liga": 4,
+    "dywizja": 2,
+    "punkty": 0,
+    "rating_calkowity": 1100,
+    "bitwy": 0
+  },
+  {
+    "id": 500260509,
+    "tag": "SARM",
+    "nazwa": "SteelArmada",
+    "liga": 4,
+    "dywizja": 2,
+    "punkty": 0,
+    "rating_calkowity": 1100,
+    "bitwy": 0
+  },
+  {
+    "id": 500232595,
+    "tag": "HUZAR",
+    "nazwa": "Polskie Siły Szturmowe",
+    "liga": 4,
+    "dywizja": 2,
+    "punkty": 0,
+    "rating_calkowity": 1100,
+    "bitwy": 0
+  },
+  {
+    "id": 500145637,
+    "tag": "HUS",
+    "nazwa": "Husaria",
+    "liga": 4,
+    "dywizja": 2,
+    "punkty": 0,
+    "rating_calkowity": 1100,
+    "bitwy": 0
+  }
+]
