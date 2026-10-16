@@ -2,8 +2,12 @@ const fs = require('fs');
 
 const WG_APP_ID = process.env.WG_APP_ID || 'f97617376d96e82727df1de63b18c718';
 
-// TUTAJ WPISZ SWOJE TAGI POLSKICH KLANÓW:
-const polskieTagi = ['ORZEL', 'HUSAR', 'PL-N', '1SBS', 'SARM']; 
+// Lista polskich klanów (m.in. te z Twojego screena - możesz dopisać kolejne!)
+const polskieTagi = [
+  'SEEYA', 'CM69', '505PL', 'OMRK', 'N0R1S', 'P_G_O', 'PMT', 'FHC',
+  'TF10', 'MD-PL', 'G0R2Y', 'S-E', 'S_B_O', 'C0DE', 'B_S_W', '16_PD',
+  'ORZEL', 'HUSAR', 'PL-N', '1SBS', 'SARM'
+];
 
 const API_HOST = 'https://' + 'api.worldofwarships.eu';
 const CLANS_HOST = 'https://' + 'clans.worldofwarships.eu';
@@ -13,24 +17,31 @@ const headers = {
   'Accept': 'application/json'
 };
 
-function formatujOcene(r) {
+function parsujOcene(r) {
   if (!r) return null;
   const bitwy = r.battles_count ?? 0;
   const wygrane = r.wins_count ?? 0;
   return {
-    team: r.team_number || 1,
+    team_number: r.team_number || 1,
+    rating_name: r.team_number === 2 ? 'Bravo' : 'Alpha',
     liga: r.league ?? 4,
     dywizja: r.division ?? 3,
     punkty: r.division_rating ?? 0,
     rating_calkowity: r.public_rating ?? 0,
+    max_liga: r.max_position?.league ?? r.league ?? 4,
+    max_dywizja: r.max_position?.division ?? r.division ?? 3,
+    max_punkty: r.max_position?.division_rating ?? r.division_rating ?? 0,
+    max_rating_calkowity: r.max_public_rating ?? r.public_rating ?? 0,
     bitwy: bitwy,
     wygrane: wygrane,
-    wr: bitwy > 0 ? Number(((wygrane / bitwy) * 100).toFixed(1)) : 0
+    wr: bitwy > 0 ? Number(((wygrane / bitwy) * 100).toFixed(2)) : 0,
+    season_number: r.season_number || null
   };
 }
 
 async function pobierzDane() {
   const wyniki = [];
+  let aktualnySezon = 33;
 
   for (const rawTag of polskieTagi) {
     const tag = rawTag.trim().toUpperCase();
@@ -41,12 +52,11 @@ async function pobierzDane() {
 
       if (searchData.status !== 'ok' || !Array.isArray(searchData.data) || searchData.data.length === 0) continue;
 
-      const klanInfo = searchData.data.find(c => c.tag.toUpperCase() === tag) || searchData.data.at(0);
+      const klanInfo = searchData.data.find(c => c.tag.toUpperCase() === tag);
       if (!klanInfo) continue;
 
       const clanId = klanInfo.clan_id;
-      let ocena1 = { liga: 4, dywizja: 3, punkty: 0, rating_calkowity: 0, bitwy: 0, wygrane: 0, wr: 0 };
-      let ocena2 = null;
+      let oceny = [];
 
       try {
         const cbUrl = `${CLANS_HOST}/api/clanbase/${clanId}/claninfo/`;
@@ -56,44 +66,46 @@ async function pobierzDane() {
           const ladder = cbData?.clanview?.wows_ladder;
 
           if (ladder) {
-            let listaOcen = [];
+            if (ladder.season_number) aktualnySezon = ladder.season_number;
+
+            let suroweOceny = [];
             if (Array.isArray(ladder.ratings) && ladder.ratings.length > 0) {
-              listaOcen = ladder.ratings;
+              suroweOceny = ladder.ratings;
             } else if (Array.isArray(ladder.last_season_ratings) && ladder.last_season_ratings.length > 0) {
-              listaOcen = ladder.last_season_ratings;
+              suroweOceny = ladder.last_season_ratings;
+            } else if (ladder.battles_count > 0 || ladder.public_rating > 0) {
+              suroweOceny = [ladder];
             }
 
-            if (listaOcen.length > 0) {
-              listaOcen.sort((a, b) => (b.public_rating || 0) - (a.public_rating || 0));
-              ocena1 = formatujOcene(listaOcen.at(0));
-              if (listaOcen.length > 1) {
-                ocena2 = formatujOcene(listaOcen.at(1));
-              }
-            } else if (ladder.battles_count > 0 || ladder.public_rating > 0) {
-              ocena1 = formatujOcene(ladder);
-            }
+            oceny = suroweOceny.map(parsujOcene).filter(Boolean);
           }
         }
-      } catch (cbErr) {
-        console.log(`Błąd CB dla ${tag}:`, cbErr.message);
+      } catch (e) {
+        console.log(`Błąd CB dla ${tag}:`, e.message);
+      }
+
+      if (oceny.length === 0) {
+        oceny.push({
+          team_number: 1,
+          rating_name: 'Alpha',
+          liga: 4, dywizja: 3, punkty: 0, rating_calkowity: 0,
+          max_liga: 4, max_dywizja: 3, max_punkty: 0, max_rating_calkowity: 0,
+          bitwy: 0, wygrane: 0, wr: 0
+        });
       }
 
       wyniki.push({
         id: clanId,
         tag: klanInfo.tag,
         nazwa: klanInfo.name,
-        ocena1,
-        ocena2,
-        max_rating: ocena1.rating_calkowity,
-        suma_bitew: ocena1.bitwy + (ocena2 ? ocena2.bitwy : 0)
+        sezon: aktualnySezon,
+        oceny: oceny
       });
 
     } catch (err) {
       console.error(`Błąd dla ${tag}:`, err);
     }
   }
-
-  wyniki.sort((a, b) => (b.max_rating - a.max_rating) || (b.suma_bitew - a.suma_bitew));
 
   fs.mkdirSync('./public', { recursive: true });
   fs.writeFileSync('./public/wyniki.json', JSON.stringify(wyniki, null, 2));
