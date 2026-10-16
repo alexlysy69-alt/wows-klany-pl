@@ -10,7 +10,8 @@
       "punkty": 55,
       "rating_calkowity": 1955,
       "bitwy": 191,
-      "wygrane": 101
+      "wygrane": 101,
+      "wr": 52.9
     },
     "ocena2": {
       "team": 1,
@@ -19,7 +20,8 @@
       "punkty": 8,
       "rating_calkowity": 1908,
       "bitwy": 156,
-      "wygrane": 84
+      "wygrane": 84,
+      "wr": 53.8
     },
     "max_rating": 1955,
     "suma_bitew": 347
@@ -35,7 +37,8 @@
       "punkty": 0,
       "rating_calkowity": 1100,
       "bitwy": 0,
-      "wygrane": 0
+      "wygrane": 0,
+      "wr": 0
     },
     "ocena2": null,
     "max_rating": 1100,
@@ -52,7 +55,8 @@
       "punkty": 0,
       "rating_calkowity": 1100,
       "bitwy": 0,
-      "wygrane": 0
+      "wygrane": 0,
+      "wr": 0
     },
     "ocena2": {
       "team": 1,
@@ -61,7 +65,8 @@
       "punkty": 0,
       "rating_calkowity": 1100,
       "bitwy": 0,
-      "wygrane": 0
+      "wygrane": 0,
+      "wr": 0
     },
     "max_rating": 1100,
     "suma_bitew": 0
@@ -77,7 +82,8 @@
       "punkty": 0,
       "rating_calkowity": 1100,
       "bitwy": 0,
-      "wygrane": 0
+      "wygrane": 0,
+      "wr": 0
     },
     "ocena2": null,
     "max_rating": 1100,
@@ -94,7 +100,8 @@
       "punkty": 0,
       "rating_calkowity": 1100,
       "bitwy": 0,
-      "wygrane": 0
+      "wygrane": 0,
+      "wr": 0
     },
     "ocena2": null,
     "max_rating": 1100,
