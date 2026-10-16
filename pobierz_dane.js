@@ -3,7 +3,7 @@ const fs = require('fs');
 const WG_APP_ID = process.env.WG_APP_ID || 'f97617376d96e82727df1de63b18c718';
 
 // Lista TAGÓW polskich klanów do śledzenia (możesz tu dopisać dowolne kolejne!)
-const polskieTagi = ['ORZEL', 'HUSAR', 'PL-N', '1SBS', 'SARM']; 
+const polskieTagi = ['ORZEL', 'HUSAR', 'PL-N', '1SBS', 'SEEYA']; 
 
 async function pobierzDane() {
   const wyniki = [];
