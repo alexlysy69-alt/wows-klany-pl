@@ -10,20 +10,22 @@ const CLANS_HOST = 'https://' + 'clans.worldofwarships.eu';
 
 const headers = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/124.0.0.0 Safari/537.36',
-  'Accept': 'application/json, text/plain, */*',
-  'Referer': 'https://clans.worldofwarships.eu/clan-battles/rating'
+  'Accept': 'application/json'
 };
 
 function formatujOcene(r) {
   if (!r) return null;
+  const bitwy = r.battles_count ?? 0;
+  const wygrane = r.wins_count ?? 0;
   return {
     team: r.team_number || 1,
     liga: r.league ?? 4,
     dywizja: r.division ?? 3,
     punkty: r.division_rating ?? 0,
     rating_calkowity: r.public_rating ?? 0,
-    bitwy: r.battles_count ?? 0,
-    wygrane: r.wins_count ?? 0
+    bitwy: bitwy,
+    wygrane: wygrane,
+    wr: bitwy > 0 ? Number(((wygrane / bitwy) * 100).toFixed(1)) : 0
   };
 }
 
@@ -37,13 +39,13 @@ async function pobierzDane() {
       const searchRes = await fetch(searchUrl, { headers });
       const searchData = await searchRes.json();
 
-      if (searchData.status !== 'ok' || !searchData.data || searchData.data.length === 0) continue;
+      if (searchData.status !== 'ok' || !Array.isArray(searchData.data) || searchData.data.length === 0) continue;
 
-      // Szukamy DOKŁADNEGO dopasowania tagu (naprawia problem złych nazw!)
-      const klanInfo = searchData.data.find(c => c.tag.toUpperCase() === tag) || searchData.data[0];
+      const klanInfo = searchData.data.find(c => c.tag.toUpperCase() === tag) || searchData.data.at(0);
+      if (!klanInfo) continue;
+
       const clanId = klanInfo.clan_id;
-
-      let ocena1 = { liga: 4, dywizja: 3, punkty: 0, rating_calkowity: 0, bitwy: 0, wygrane: 0 };
+      let ocena1 = { liga: 4, dywizja: 3, punkty: 0, rating_calkowity: 0, bitwy: 0, wygrane: 0, wr: 0 };
       let ocena2 = null;
 
       try {
@@ -54,7 +56,6 @@ async function pobierzDane() {
           const ladder = cbData?.clanview?.wows_ladder;
 
           if (ladder) {
-            // Pobieramy wszystkie oceny (Alfa i Bravo) z aktualnego lub ostatniego aktywnego sezonu
             let listaOcen = [];
             if (Array.isArray(ladder.ratings) && ladder.ratings.length > 0) {
               listaOcen = ladder.ratings;
@@ -63,11 +64,10 @@ async function pobierzDane() {
             }
 
             if (listaOcen.length > 0) {
-              // Sortujemy oceny od najwyższej (najlepsza jako Główna / Alfa, druga jako Bravo)
               listaOcen.sort((a, b) => (b.public_rating || 0) - (a.public_rating || 0));
-              ocena1 = formatujOcene(listaOcen[0]);
+              ocena1 = formatujOcene(listaOcen.at(0));
               if (listaOcen.length > 1) {
-                ocena2 = formatujOcene(listaOcen[1]);
+                ocena2 = formatujOcene(listaOcen.at(1));
               }
             } else if (ladder.battles_count > 0 || ladder.public_rating > 0) {
               ocena1 = formatujOcene(ladder);
@@ -93,7 +93,6 @@ async function pobierzDane() {
     }
   }
 
-  // Sortowanie od najwyższej oceny (a przy remisie po liczbie bitew)
   wyniki.sort((a, b) => (b.max_rating - a.max_rating) || (b.suma_bitew - a.suma_bitew));
 
   fs.mkdirSync('./public', { recursive: true });
