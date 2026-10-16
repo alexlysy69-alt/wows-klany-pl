@@ -49,11 +49,30 @@ const polskieKlany = [
   { "id": 500249280, "tag": "INT-M" }, { "id": 500221327, "tag": "FROGS" }
 ];
 
+function wyciagnijOcene(r) {
+  if (!r) return null;
+  const bitwy = r.battles_count ?? 0;
+  const wygrane = r.wins_count ?? 0;
+  return {
+    team_number: r.team_number || 1,
+    rating_name: r.team_number === 2 ? 'Bravo' : 'Alpha',
+    liga: r.league ?? 4,
+    dywizja: r.division ?? 3,
+    punkty: r.division_rating ?? 0,
+    rating_calkowity: r.public_rating ?? 0,
+    max_liga: r.max_league ?? r.league ?? 4,
+    max_dywizja: r.max_division ?? r.division ?? 3,
+    max_punkty: r.max_division_rating ?? r.division_rating ?? 0,
+    max_rating_calkowity: r.max_public_rating ?? r.public_rating ?? 0,
+    bitwy: bitwy,
+    wygrane: wygrane,
+    wr: bitwy > 0 ? Number(((wygrane / bitwy) * 100).toFixed(2)) : 0
+  };
+}
+
 async function pobierzDane() {
   const wyniki = [];
   const idsString = polskieKlany.map(c => c.id).join(',');
-  
-  // Pobieramy dane o wszystkich klanach na raz z oficjalnego API Wargamingu (obsługuje do 100 ID w jednym zapytaniu!)
   const url = `https://worldofwarships.eu{WG_APP_ID}&clan_id=${idsString}&extra=clan_battles`;
 
   try {
@@ -74,32 +93,37 @@ async function pobierzDane() {
       let oceny = [];
       const cb = info.clan_battles;
 
-      if (cb && Array.isArray(cb.ratings)) {
+      if (cb) {
         aktualnySezon = cb.season_id || aktualnySezon;
         
-        cb.ratings.forEach(r => {
-          const bitwy = r.battles_count ?? 0;
-          const wygrane = r.wins_count ?? 0;
-          
-          oceny.push({
-            team_number: r.team_number || 1,
-            rating_name: r.team_number === 2 ? 'Bravo' : 'Alpha',
-            liga: r.league ?? 4,
-            dywizja: r.division ?? 3,
-            punkty: r.division_rating ?? 0,
-            rating_calkowity: r.public_rating ?? 0,
-            max_liga: r.max_league ?? r.league ?? 4,
-            max_dywizja: r.max_division ?? r.division ?? 3,
-            max_punkty: r.max_division_rating ?? r.division_rating ?? 0,
-            max_rating_calkowity: r.max_public_rating ?? r.public_rating ?? 0,
-            bitwy: bitwy,
-            wygrane: wygrane,
-            wr: bitwy > 0 ? Number(((wygrane / bitwy) * 100).toFixed(2)) : 0
+        // Sytuacja 1: Trwa aktywny sezon, zbieramy bieżące oceny
+        if (Array.isArray(cb.ratings) && cb.ratings.length > 0) {
+          cb.ratings.forEach(r => {
+            const f = wyciagnijOcene(r);
+            if (f) oceny.push(f);
           });
-        });
+        } 
+        // Sytuacja 2: Trwa przerwa między sezonami, wyciągamy oceny z ostatniego zapisanego sezonu
+        else if (cb.past_seasons && typeof cb.past_seasons === 'object') {
+          const sezonyIds = Object.keys(cb.past_seasons).map(Number).sort((a, b) => b - a);
+          const ostatniSezonId = sezonyIds.at(0);
+          
+          if (ostatniSezonId) {
+            const daneSezonu = cb.past_seasons[ostatniSezonId];
+            if (daneSezonu && Array.isArray(daneSezonu.ratings)) {
+              daneSezonu.ratings.forEach(r => {
+                const f = wyciagnijOcene(r);
+                if (f) oceny.push(f);
+              });
+            } else if (daneSezonu && (daneSezonu.battles_count > 0 || daneSezonu.public_rating > 0)) {
+              const f = wyciagnijOcene(daneSezonu);
+              if (f) oceny.push(f);
+            }
+          }
+        }
       }
 
-      // Jeśli klan nie grał jeszcze w tym sezonie, tworzymy dla niego pusty wpis startowy
+      // Sytuacja 3: Całkowity brak wpisów o bitwach, generujemy domyślny wiersz Szkwał
       if (oceny.length === 0) {
         oceny.push({
           team_number: 1, rating_name: 'Alpha',
@@ -120,10 +144,10 @@ async function pobierzDane() {
 
     fs.mkdirSync('./public', { recursive: true });
     fs.writeFileSync('./public/wyniki.json', JSON.stringify(wyniki, null, 2));
-    console.log(`Sukces! Zapisano dane dla dokładnie ${wyniki.length} klanów.`);
+    console.log(`Sukces! Przetworzono stabilnie ${wyniki.length} klanów.`);
 
   } catch (err) {
-    console.error("Błąd sieciowy podczas pobierania danych:", err.message);
+    console.error("Błąd pobierania:", err.message);
   }
 }
 
