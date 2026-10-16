@@ -49,6 +49,8 @@ const polskieKlany = [
   { "id": 500249280, "tag": "INT-M" }, { "id": 500221327, "tag": "FROGS" }
 ];
 
+const czekaj = ms => new Promise(res => setTimeout(res, ms));
+
 function wyciagnijOcene(r) {
   if (!r) return null;
   const bitwy = r.battles_count ?? 0;
@@ -72,83 +74,84 @@ function wyciagnijOcene(r) {
 
 async function pobierzDane() {
   const wyniki = [];
-  const idsString = polskieKlany.map(c => c.id).join(',');
-  const url = `https://worldofwarships.eu{WG_APP_ID}&clan_id=${idsString}&extra=clan_battles`;
+  let aktualnySezon = 33;
 
-  try {
-    const res = await fetch(url);
-    const apiData = await res.json();
+  // Dzielimy klany na mniejsze paczki po 10 sztuk
+  constrozmiarPaczki = 10;
+  
+  for (let i = 0; i < polskieKlany.length; i += rozmiarPaczki) {
+    const paczka = polskieKlany.slice(i, i + rozmiarPaczki);
+    const idsString = paczka.map(c => c.id).join(',');
+    const url = `https://worldofwarships.eu{WG_APP_ID}&clan_id=${idsString}&extra=clan_battles`;
 
-    if (apiData.status !== 'ok' || !apiData.data) {
-      console.error("Błąd API Wargamingu:", apiData.error);
-      return;
-    }
+    try {
+      console.log(`Pobieranie paczki klanów od pozycji ${i + 1}...`);
+      const res = await fetch(url);
+      const apiData = await res.json();
 
-    let aktualnySezon = 33;
+      if (apiData.status === 'ok' && apiData.data) {
+        paczka.forEach(klan => {
+          const info = apiData.data[klan.id];
+          if (!info) return;
 
-    polskieKlany.forEach(klan => {
-      const info = apiData.data[klan.id];
-      if (!info) return;
+          let oceny = [];
+          const cb = info.clan_battles;
 
-      let oceny = [];
-      const cb = info.clan_battles;
-
-      if (cb) {
-        aktualnySezon = cb.season_id || aktualnySezon;
-        
-        // Sytuacja 1: Trwa aktywny sezon, zbieramy bieżące oceny
-        if (Array.isArray(cb.ratings) && cb.ratings.length > 0) {
-          cb.ratings.forEach(r => {
-            const f = wyciagnijOcene(r);
-            if (f) oceny.push(f);
-          });
-        } 
-        // Sytuacja 2: Trwa przerwa między sezonami, wyciągamy oceny z ostatniego zapisanego sezonu
-        else if (cb.past_seasons && typeof cb.past_seasons === 'object') {
-          const sezonyIds = Object.keys(cb.past_seasons).map(Number).sort((a, b) => b - a);
-          const ostatniSezonId = sezonyIds.at(0);
-          
-          if (ostatniSezonId) {
-            const daneSezonu = cb.past_seasons[ostatniSezonId];
-            if (daneSezonu && Array.isArray(daneSezonu.ratings)) {
-              daneSezonu.ratings.forEach(r => {
+          if (cb) {
+            aktualnySezon = cb.season_id || aktualnySezon;
+            if (Array.isArray(cb.ratings) && cb.ratings.length > 0) {
+              cb.ratings.forEach(r => {
                 const f = wyciagnijOcene(r);
                 if (f) oceny.push(f);
               });
-            } else if (daneSezonu && (daneSezonu.battles_count > 0 || daneSezonu.public_rating > 0)) {
-              const f = wyciagnijOcene(daneSezonu);
-              if (f) oceny.push(f);
+            } else if (cb.past_seasons && typeof cb.past_seasons === 'object') {
+              const sezonyIds = Object.keys(cb.past_seasons).map(Number).sort((a, b) => b - a);
+              const ostatniSezonId = sezonyIds.at(0);
+              if (ostatniSezonId) {
+                const daneSezonu = cb.past_seasons[ostatniSezonId];
+                if (daneSezonu && Array.isArray(daneSezonu.ratings)) {
+                  daneSezonu.ratings.forEach(r => {
+                    const f = wyciagnijOcene(r);
+                    if (f) oceny.push(f);
+                  });
+                } else if (daneSezonu && (daneSezonu.battles_count > 0 || daneSezonu.public_rating > 0)) {
+                  const f = wyciagnijOcene(daneSezonu);
+                  if (f) oceny.push(f);
+                }
+              }
             }
           }
-        }
-      }
 
-      // Sytuacja 3: Całkowity brak wpisów o bitwach, generujemy domyślny wiersz Szkwał
-      if (oceny.length === 0) {
-        oceny.push({
-          team_number: 1, rating_name: 'Alpha',
-          liga: 4, dywizja: 3, punkty: 0, rating_calkowity: 0,
-          max_liga: 4, max_dywizja: 3, max_punkty: 0, max_rating_calkowity: 0,
-          bitwy: 0, wygrane: 0, wr: 0
+          if (oceny.length === 0) {
+            oceny.push({
+              team_number: 1, rating_name: 'Alpha',
+              liga: 4, dywizja: 3, punkty: 0, rating_calkowity: 0,
+              max_liga: 4, max_dywizja: 3, max_punkty: 0, max_rating_calkowity: 0,
+              bitwy: 0, wygrane: 0, wr: 0
+            });
+          }
+
+          wyniki.push({
+            id: klan.id,
+            tag: info.tag || klan.tag,
+            nazwa: info.name || info.tag,
+            sezon: aktualnySezon,
+            oceny: oceny
+          });
         });
       }
+      
+      // Krótka przerwa między paczkami, żeby serwer odpoczął
+      await czekaj(800);
 
-      wyniki.push({
-        id: klan.id,
-        tag: info.tag || klan.tag,
-        nazwa: info.name || info.tag,
-        sezon: aktualnySezon,
-        oceny: oceny
-      });
-    });
-
-    fs.mkdirSync('./public', { recursive: true });
-    fs.writeFileSync('./public/wyniki.json', JSON.stringify(wyniki, null, 2));
-    console.log(`Sukces! Przetworzono stabilnie ${wyniki.length} klanów.`);
-
-  } catch (err) {
-    console.error("Błąd pobierania:", err.message);
+    } catch (err) {
+      console.error(`Błąd paczki klanów:`, err.message);
+    }
   }
+
+  fs.mkdirSync('./public', { recursive: true });
+  fs.writeFileSync('./public/wyniki.json', JSON.stringify(wyniki, null, 2));
+  console.log(`Sukces! Zapisano dane dla ${wyniki.length} klanów.`);
 }
 
 pobierzDane();
