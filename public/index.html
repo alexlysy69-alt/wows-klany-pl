@@ -86,50 +86,28 @@
   var ROMAN = ['', 'I', 'II', 'III'];
   var rawClans = [];
 
-  function pobierzOcenyKlanu(clan) {
-    if (Array.isArray(clan.oceny) && clan.oceny.length > 0) return clan.oceny;
-    var list = [];
-    if (clan.ocena1) list.push(Object.assign({}, clan.ocena1, { rating_name: 'Alpha', team_number: 1 }));
-    if (clan.ocena2) list.push(Object.assign({}, clan.ocena2, { rating_name: 'Bravo', team_number: 2 }));
-    if (list.length === 0) {
-      list.push({ rating_name: 'Alpha', team_number: 1, liga: clan.liga !== undefined ? clan.liga : 4, dywizja: clan.dywizja !== undefined ? clan.dywizja : 3, punkty: clan.punkty || 0, rating_calkowity: clan.rating_calkowity || 0, bitwy: clan.bitwy || 0, wygrane: clan.wygrane || 0 });
-    }
-    return list;
+  function obliczLigeZRatingu(rating) {
+    if (rating >= 2000) return { liga: 0, dyw: 1, pkt: rating - 2000 };
+    if (rating >= 1700) return { liga: 1, dyw: Math.floor((2000 - rating) / 100) + 1, pkt: rating % 100 };
+    if (rating >= 1400) return { liga: 2, dyw: Math.floor((1700 - rating) / 100) + 1, pkt: rating % 100 };
+    if (rating >= 1100) return { liga: 3, dyw: Math.floor((1400 - rating) / 100) + 1, pkt: rating % 100 };
+    return { liga: 4, dyw: Math.max(1, Math.floor((1100 - rating) / 100) + 1), pkt: rating % 100 };
   }
 
   function render() {
     try {
-      var checkedRadio = document.querySelector('input[name="ratingMode"]:checked');
-      var mode = checkedRadio ? checkedRadio.value : 'max';
-      var showBoth = document.getElementById('showAlphaBravo').checked;
       var query = document.getElementById('searchInput').value.trim().toLowerCase();
       var rows = [];
 
       rawClans.forEach(function(clan) {
-        var oceny = pobierzOcenyKlanu(clan);
-        var sorted = oceny.slice().sort(function(a, b) {
-          var rA = mode === 'max' ? (a.max_rating_calkowity || a.rating_calkowity || 0) : (a.rating_calkowity || 0);
-          var rB = mode === 'max' ? (b.max_rating_calkowity || b.rating_calkowity || 0) : (b.rating_calkowity || 0);
-          return rB - rA;
-        });
-        var first = sorted.at(0);
-        var toUse = showBoth ? sorted : (first ? [first] : []);
+        var rating = clan.rating_calkowity || 0;
+        var infoLigi = obliczLigeZRatingu(rating);
+        var b = clan.bitwy || 0, w = clan.wygrane || 0;
 
-        toUse.forEach(function(r, idx) {
-          if (!r) return;
-          if (showBoth && sorted.length > 1 && (r.bitwy || 0) === 0 && idx > 0) return;
-          var liga = (mode === 'max' && r.max_liga !== undefined) ? r.max_liga : (r.liga !== undefined ? r.liga : 4);
-          var dyw = (mode === 'max' && r.max_dywizja !== undefined) ? r.max_dywizja : (r.dywizja !== undefined ? r.dywizja : 3);
-          var pkt = (mode === 'max' && r.max_punkty !== undefined) ? r.max_punkty : (r.punkty !== undefined ? r.punkty : 0);
-          var tot = (mode === 'max' && r.max_rating_calkowity !== undefined) ? r.max_rating_calkowity : (r.rating_calkowity !== undefined ? r.rating_calkowity : 0);
-          var b = r.bitwy || 0, w = r.wygrane || 0;
-
-          rows.push({
-            tag: clan.tag || '???', nazwa: clan.nazwa || '',
-            ratingName: r.rating_name || (r.team_number === 2 ? 'Bravo' : 'Alpha'),
-            bitwy: b, wygrane: w, wr: b > 0 ? ((w / b) * 100) : 0,
-            liga: liga, dywizja: dyw, punkty: pkt, totalRating: tot
-          });
+        rows.push({
+          tag: clan.tag || '???', nazwa: clan.nazwa || '',
+          ratingName: 'Alpha', bitwy: b, wygrane: w, wr: b > 0 ? ((w / b) * 100) : 0,
+          liga: infoLigi.liga, dywizja: infoLigi.dyw, punkty: infoLigi.pkt, totalRating: rating
         });
       });
 
@@ -159,7 +137,7 @@
       filtered.forEach(function(r, idx) {
         var wrClass = r.wr >= 53 ? 'wr-high' : 'wr-mid';
         var lgName = LEAGUE_NAMES.at(r.liga) || 'SQUALL';
-                html += '<tr><td class="pos-cell">' + (idx + 1) + '</td><td class="tag-cell">[' + r.tag + ']</td><td class="name-cell">' + r.nazwa + '</td><td class="col-center rating-cell">' + r.ratingName + '</td><td class="col-center">' + r.bitwy + '</td><td class="col-center">' + r.wygrane + '</td><td class="col-center ' + wrClass + '">' + r.wr.toFixed(2) + '%</td><td class="col-center"><span class="lg-' + r.liga + '">' + lgName + '</span></td><td class="col-center">' + r.dywizja + '</td><td class="col-right points-cell">' + r.punkty + '</td></tr>';
+        html += '<tr><td class="pos-cell">' + (idx + 1) + '</td><td class="tag-cell">[' + r.tag + ']</td><td class="name-cell">' + r.nazwa + '</td><td class="col-center rating-cell">' + r.ratingName + '</td><td class="col-center">' + r.bitwy + '</td><td class="col-center">' + r.wygrane + '</td><td class="col-center ' + wrClass + '">' + r.wr.toFixed(2) + '%</td><td class="col-center"><span class="lg-' + r.liga + '">' + lgName + '</span></td><td class="col-center">' + r.dywizja + '</td><td class="col-right points-cell">' + r.punkty + '</td></tr>';
       });
       tbody.innerHTML = html || '<tr><td colspan="10" class="col-center">Brak danych.</td></tr>';
     } catch (e) {
