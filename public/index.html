@@ -2,146 +2,326 @@
 <html lang="pl">
 <head>
   <meta charset="UTF-8">
-  <title>Polskie Klany WoWS - Wyniki CB</title>
+  <title>Polish Clan Battles Standings</title>
   <style>
-    body { font-family: 'Segoe UI', Arial, sans-serif; background: #0f172a; color: #f8fafc; padding: 20px; text-align: center; margin: 0; }
-    h1 { margin-bottom: 10px; }
-    
-    /* Karta Aktualnego Lidera */
-    .lider-box {
-      max-width: 650px; margin: 20px auto 30px; padding: 20px;
-      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-      border: 2px solid #eab308; border-radius: 12px;
-      box-shadow: 0 0 25px rgba(234, 179, 8, 0.25);
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #0b111e;
+      color: #e2e8f0;
+      margin: 0;
+      padding: 25px 15px;
     }
-    .lider-tytul { color: #eab308; font-size: 13px; text-transform: uppercase; letter-spacing: 2px; font-weight: bold; }
-    .lider-nazwa { font-size: 26px; font-weight: bold; margin: 8px 0; color: #ffffff; }
-    .lider-detale { font-size: 15px; color: #cbd5e1; line-height: 1.6; }
-
-    /* Tabela wyników */
-    table { width: 95%; max-width: 1150px; margin: 20px auto; border-collapse: collapse; background: #1e293b; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.4); }
-    th, td { padding: 12px 15px; border-bottom: 1px solid #334155; text-align: left; vertical-align: middle; }
-    th { background: #0284c7; color: white; text-transform: uppercase; font-size: 13px; letter-spacing: 0.5px; }
-    tr:hover { background: #334155; }
-    .tag { font-weight: bold; color: #38bdf8; }
-    .brak { color: #64748b; font-style: italic; font-size: 13px; }
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
     
-    /* Detale oceny i Win Ratio */
-    .ocena-glowna { font-size: 15px; margin-bottom: 4px; }
-    .ocena-staty { font-size: 12px; color: #94a3b8; }
-    .wr-badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 12px; margin-right: 6px; background: rgba(255,255,255,0.08); }
-    .wr-unicum { color: #c084fc; } /* 65%+ */
-    .wr-great { color: #38bdf8; }  /* 58%+ */
-    .wr-good { color: #4ade80; }   /* 52%+ */
-    .wr-avg { color: #fbbf24; }    /* 48%+ */
-    .wr-low { color: #f87171; }    /* poniżej 48% */
+    /* Nagłówek */
+    .header { text-align: center; margin-bottom: 22px; }
+    .badge-top {
+      display: inline-block;
+      font-size: 9px;
+      color: #38bdf8;
+      border: 1px solid #1e3a5f;
+      background: rgba(14, 165, 233, 0.08);
+      padding: 3px 10px;
+      border-radius: 12px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .header h1 {
+      font-size: 22px;
+      margin: 0;
+      font-weight: 700;
+      color: #f8fafc;
+    }
 
-    /* Kolory lig WoWS */
-    .liga-0 { color: #c084fc; font-weight: bold; } /* Huragan */
-    .liga-1 { color: #38bdf8; font-weight: bold; } /* Tajfun */
-    .liga-2 { color: #fbbf24; font-weight: bold; } /* Sztorm */
-    .liga-3 { color: #4ade80; font-weight: bold; } /* Wichura */
-    .liga-4 { color: #cbd5e1; font-weight: bold; } /* Szkwał */
+    /* 4 Karty na górze */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+    .stat-card {
+      background: #131c2e;
+      border: 1px solid #1e293b;
+      border-radius: 6px;
+      padding: 14px 16px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 3px;
+    }
+    .card-blue::before { background: #38bdf8; }
+    .card-cyan::before { background: #2dd4bf; }
+    .card-red::before { background: #ef4444; }
+    .card-gold::before { background: #eab308; }
+
+    .card-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #64748b;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+    .card-value {
+      font-size: 20px;
+      font-weight: 700;
+    }
+    .val-white { color: #f8fafc; }
+    .val-cyan { color: #38bdf8; }
+    .val-red { color: #ef4444; }
+    .val-gold { color: #eab308; }
+
+    /* Pasek opcji (bez przycisku Export JSON) */
+    .controls-bar {
+      background: #131c2e;
+      border: 1px solid #1e293b;
+      border-radius: 6px;
+      padding: 10px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      font-size: 12px;
+      color: #cbd5e1;
+    }
+    .controls-left {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+    .controls-left label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+    }
+    .controls-left input {
+      accent-color: #0ea5e9;
+      cursor: pointer;
+    }
+    .season-select {
+      background: #0b111e;
+      color: #e2e8f0;
+      border: 1px solid #334155;
+      border-radius: 4px;
+      padding: 5px 10px;
+      font-size: 12px;
+    }
+
+    /* Wyszukiwarka */
+    .search-box {
+      width: 100%;
+      background: #0d1526;
+      border: 1px solid #1e293b;
+      border-radius: 6px;
+      padding: 10px 14px;
+      color: #f8fafc;
+      font-size: 12px;
+      margin-bottom: 16px;
+      outline: none;
+    }
+    .search-box:focus { border-color: #0ea5e9; }
+    .search-box::placeholder { color: #475569; }
+
+    /* Tabela */
+    .table-wrap {
+      background: #131c2e;
+      border: 1px solid #1e293b;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    th {
+      background: #162035;
+      color: #64748b;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      padding: 12px 12px;
+      text-align: left;
+      border-bottom: 1px solid #1e293b;
+    }
+    td {
+      padding: 11px 12px;
+      border-bottom: 1px solid #1a263d;
+      color: #cbd5e1;
+    }
+    tr:hover td { background: #19253d; }
+    
+    .col-center { text-align: center; }
+    .col-right { text-align: right; }
+    
+    .pos-cell { color: #64748b; font-weight: 600; width: 45px; }
+    .tag-cell { color: #0ea5e9; font-weight: 700; }
+    .name-cell { color: #e2e8f0; }
+    .rating-cell { color: #64748b; font-size: 11px; }
+    .points-cell { font-weight: 700; color: #f8fafc; }
+
+    /* Kolory WR% */
+    .wr-high { color: #fbbf24; font-weight: 600; }
+    .wr-mid { color: #e2e8f0; }
+
+    /* Kolory Lig (identyczne jak na screenie) */
+    .lg-0 { color: #ef4444; font-weight: 700; text-transform: uppercase; font-size: 10px; } /* HURRICANE */
+    .lg-1 { color: #f97316; font-weight: 700; text-transform: uppercase; font-size: 10px; } /* TYPHOON */
+    .lg-2 { color: #eab308; font-weight: 700; text-transform: uppercase; font-size: 10px; } /* STORM */
+    .lg-3 { color: #38bdf8; font-weight: 700; text-transform: uppercase; font-size: 10px; } /* GALE */
+    .lg-4 { color: #94a3b8; font-weight: 700; text-transform: uppercase; font-size: 10px; } /* SQUALL */
+
+    @media (max-width: 768px) {
+      .cards-grid { grid-template-columns: repeat(2, 1fr); }
+      .controls-bar { flex-direction: column; gap: 10px; align-items: flex-start; }
+    }
   </style>
 </head>
 <body>
-  <h1>⚓ Ranking Polskich Klanów WoWS</h1>
-  <p id="status">Ładowanie danych...</p>
 
-  <!-- Ramka Aktualnego Lidera -->
-  <div id="lider-container" style="display:none;"></div>
+<div class="container">
+  <div class="header">
+    <div class="badge-top">Polish Clan Battles Tracker</div>
+    <h1>Clan Battles Standings</h1>
+  </div>
 
-  <!-- Tabela z obiema ocenami i Win Ratio -->
-  <table id="tabela" style="display:none;">
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>Klan</th>
-        <th>Ocena I (Alfa / Najlepsza)</th>
-        <th>Ocena II (Bravo)</th>
-        <th>Suma Bitew</th>
-      </tr>
-    </thead>
-    <tbody id="tabela-body"></tbody>
-  </table>
+  <!-- 4 Karty podsumowania -->
+  <div class="cards-grid">
+    <div class="stat-card card-blue">
+      <div class="card-label">Tracked Polish Clans</div>
+      <div class="card-value val-white" id="stat-clans">0</div>
+    </div>
+    <div class="stat-card card-cyan">
+      <div class="card-label">Average Win Rate</div>
+      <div class="card-value val-cyan" id="stat-wr">0.0%</div>
+    </div>
+    <div class="stat-card card-red">
+      <div class="card-label">Highest League</div>
+      <div class="card-value val-red" id="stat-league">—</div>
+    </div>
+    <div class="stat-card card-gold">
+      <div class="card-label">Current Leader</div>
+      <div class="card-value val-gold" id="stat-leader">—</div>
+    </div>
+  </div>
 
-  <script>
-    const nazwyLig = ['Huragan', 'Tajfun', 'Sztorm', 'Wichura', 'Szkwał'];
+  <!-- Pasek opcji (bez Export JSON) -->
+  <div class="controls-bar">
+    <div class="controls-left">
+      <label>
+        <input type="radio" name="ratingMode" value="max" checked> Highest Rating
+      </label>
+      <label>
+        <input type="radio" name="ratingMode" value="current"> Current Rating
+      </label>
+      <label>
+        <input type="checkbox" id="showAlphaBravo" checked> Show Alpha / Bravo
+      </label>
+    </div>
+    <div>
+      <select class="season-select" id="season-select">
+        <option value="current">Current Season</option>
+      </select>
+    </div>
+  </div>
 
-    function kolorWR(wr) {
-      if (wr >= 65) return 'wr-unicum';
-      if (wr >= 58) return 'wr-great';
-      if (wr >= 52) return 'wr-good';
-      if (wr >= 48) return 'wr-avg';
-      return 'wr-low';
-    }
+  <!-- Wyszukiwarka -->
+  <input type="text" id="searchInput" class="search-box" placeholder="Search by Clan Tag or Name (e.g. SEEYA, CM69, 505PL, OMRK)...">
 
-    function pokazOcene(ocena) {
-      if (!ocena || (ocena.bitwy === 0 && ocena.rating_calkowity === 0)) {
-        return '<span class="brak">Brak rozegranych bitew</span>';
-      }
-      const nazwa = nazwyLig[ocena.liga] || 'Szkwał';
-      const dyw = ocena.liga === 0 ? '' : ` ${ocena.dywizja}`;
-      
-      // Obliczanie Win Ratio dla danej oceny
-      const bitwy = ocena.bitwy || 0;
-      const wygrane = ocena.wygrane || 0;
-      const wr = bitwy > 0 ? ((wygrane / bitwy) * 100).toFixed(1) : '0.0';
-      const wrKlasa = kolorWR(parseFloat(wr));
+  <!-- Tabela -->
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>POS</th>
+          <th>CLAN TAG</th>
+          <th>CLAN NAME</th>
+          <th class="col-center">RATING</th>
+          <th class="col-center">BATTLES</th>
+          <th class="col-center">WINS</th>
+          <th class="col-center">WR (%)</th>
+          <th class="col-center">LEAGUE</th>
+          <th class="col-center">GROUP</th>
+          <th class="col-right">POINTS</th>
+        </tr>
+      </thead>
+      <tbody id="table-body">
+        <tr><td colspan="10" class="col-center">Loading data...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
 
-      return `
-        <div class="ocena-glowna">
-          <span class="liga-${ocena.liga}">${nazwa}${dyw}</span> — <b>${ocena.punkty} pkt</b>
-        </div>
-        <div class="ocena-staty">
-          <span class="wr-badge ${wrKlasa}">WR: ${wr}%</span>
-          Bitwy: <b>${bitwy}</b> (${wygrane}W) | Rating: ${ocena.rating_calkowity}
-        </div>
-      `;
-    }
+<script>
+  const LEAGUE_NAMES = ['HURRICANE', 'TYPHOON', 'STORM', 'GALE', 'SQUALL'];
+  const LEAGUE_TITLE = ['Hurricane', 'Typhoon', 'Storm', 'Gale', 'Squall'];
+  const ROMAN = ['', 'I', 'II', 'III'];
 
-    fetch('./wyniki.json?t=' + Date.now())
-      .then(res => res.json())
-      .then(klany => {
-        document.getElementById('status').style.display = 'none';
-        if (!klany || klany.length === 0) return;
+  let rawClans = [];
 
-        // 1. Wyświetlamy Aktualnego Lidera na górze (pierwszy klan z posortowanej listy)
-        const lider = klany[0];
-        const liderBox = document.getElementById('lider-container');
-        liderBox.style.display = 'block';
-        liderBox.innerHTML = `
-          <div class="lider-box">
-            <div class="lider-tytul">👑 Aktualny Lider Rankingu</div>
-            <div class="lider-nazwa"><span class="tag">[${lider.tag}]</span> ${lider.nazwa}</div>
-            <div class="lider-detale">
-              ${pokazOcene(lider.ocena1)}
-            </div>
-          </div>
-        `;
+  function render() {
+    const mode = document.querySelector('input[name="ratingMode"]:checked').value;
+    const showBoth = document.getElementById('showAlphaBravo').checked;
+    const query = document.getElementById('searchInput').value.trim().toLowerCase();
 
-        // 2. Wypełniamy tabelę z obiema ocenami i ich Win Ratio
-        document.getElementById('tabela').style.display = 'table';
-        const tbody = document.getElementById('tabela-body');
+    let rows = [];
 
-        klany.forEach((k, index) => {
-          const b1 = k.ocena1 ? k.ocena1.bitwy : 0;
-          const b2 = k.ocena2 ? k.ocena2.bitwy : 0;
+    rawClans.forEach(clan => {
+      if (!Array.isArray(clan.oceny) || clan.oceny.length === 0) return;
 
-          tbody.innerHTML += `
-            <tr>
-              <td><b>${index + 1}</b></td>
-              <td><span class="tag">[${k.tag}]</span> ${k.nazwa}</td>
-              <td>${pokazOcene(k.ocena1)}</td>
-              <td>${k.ocena2 ? pokazOcene(k.ocena2) : '<span class="brak">—</span>'}</td>
-              <td><b>${k.suma_bitew}</b> <span class="ocena-staty">(${b1} / ${b2})</span></td>
-            </tr>
-          `;
-        });
-      })
-      .catch(() => {
-        document.getElementById('status').innerText = 'Błąd wczytywania pliku wyniki.json.';
+      // Sortujemy oceny klanu od najlepszej
+      const sortedRatings = [...clan.oceny].sort((a, b) => {
+        const rA = mode === 'max' ? (a.max_rating_calkowity || a.rating_calkowity) : a.rating_calkowity;
+        const rB = mode === 'max' ? (b.max_rating_calkowity || b.rating_calkowity) : b.rating_calkowity;
+        return rB - rA;
       });
-  </script>
-</body>
-</html>
+
+      const ratingsToUse = showBoth ? sortedRatings : [sortedRatings.at(0)];
+
+      ratingsToUse.forEach(r => {
+        if (!r) return;
+        // Jeśli pokazujemy obie oceny, pomijamy pustą drugą ocenę (0 bitew)
+        if (showBoth && sortedRatings.length > 1 && r.bitwy === 0 && r !== sortedRatings.at(0)) return;
+
+        const liga = mode === 'max' ? (r.max_liga ?? r.liga) : r.liga;
+        const dywizja = mode === 'max' ? (r.max_dywizja ?? r.dywizja) : r.dywizja;
+        const punkty = mode === 'max' ? (r.max_punkty ?? r.punkty) : r.punkty;
+        const totalRating = mode === 'max' ? (r.max_rating_calkowity ?? r.rating_calkowity) : r.rating_calkowity;
+
+        rows.push({
+          tag: clan.tag,
+          nazwa: clan.nazwa,
+          ratingName: r.rating_name || (r.team_number === 2 ? 'Bravo' : 'Alpha'),
+          bitwy: r.bitwy || 0,
+          wygrane: r.wygrane || 0,
+          wr: r.bitwy > 0 ? ((r.wygrane / r.bitwy) * 100) : 0,
+          liga: liga ?? 4,
+          dywizja: dywizja ?? 3,
+          punkty: punkty ?? 0,
+          totalRating: totalRating ?? 0
+        });
+      });
+    });
+
+    // Sortowanie wszystkich wierszy od najwyższej pozycji w rankingu
+    rows.sort((a, b) => (b.totalRating - a.totalRating) || (b.bitwy - a.bitwy));
+
+    // Aktualizacja 4 kart na górze (na podstawie pełnej listy przed filtrowaniem wyszukiwarką)
+    document.getElementById('stat-clans').innerText = rawClans.length;
+
+    const activeRows = rows.filter(r => r.bitwy > 0);
+    if (activeRows.length > 0) {
+      const avgWr = activeRows.reduce((acc, r) => acc + r.wr, 0) / activeRows.length;
