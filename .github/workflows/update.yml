@@ -1,1 +1,37 @@
-
+{
+  "name": "Aktualizacja Wynikow WoWS",
+  "on": {
+    "push": {},
+    "workflow_dispatch": {},
+    "schedule": [
+      { "cron": "0 * * * *" }
+    ]
+  },
+  "jobs": {
+    "update-json": {
+      "runs-on": "ubuntu-latest",
+      "permissions": {
+        "contents": "write"
+      },
+      "steps": [
+        {
+          "uses": "actions/checkout@v4"
+        },
+        {
+          "uses": "actions/setup-node@v4",
+          "with": {
+            "node-version": "20"
+          }
+        },
+        {
+          "name": "Pobierz dane z API WoWS",
+          "run": "node pobierz_dane.js"
+        },
+        {
+          "name": "Zapisz wyniki.json",
+          "run": "git config --global user.name 'Bot' && git config --global user.email 'bot@://github.com' && git add public/wyniki.json && (git commit -m 'Aktualizacja CB' || true) && git push"
+        }
+      ]
+    }
+  }
+}
